@@ -18,7 +18,7 @@ type route struct {
 	name    string
 	regex   *regexp.Regexp
 	handler HandlerInterface
-	f       string
+	f       string // 方法
 }
 
 type HandlerInterface interface {
@@ -26,7 +26,6 @@ type HandlerInterface interface {
 	Prepare()
 	Finish()
 }
-
 
 func NewServerMux() *ServeMux {
 	return &ServeMux{
@@ -36,7 +35,7 @@ func NewServerMux() *ServeMux {
 
 var DefaultServeMux = NewServerMux()
 
-
+//先这样写，还没想好接口的样子
 func HandleFunc(r string, handler HandlerInterface, f string, name string) {
 	regex, err := regexp.Compile(r)
 	if err != nil {
@@ -66,15 +65,17 @@ func Error(w http.ResponseWriter, http_error HttpError) (err error) {
 func (mux *ServeMux) HandleFunc(regex *regexp.Regexp, handler HandlerInterface, f string, name string) {
 	r := route{name: name, regex: regex, handler: handler, f: f}
 	mux.routes = append(mux.routes, &r)
-    if _, ok := mux.named_handlers[name]; ok {
-        panic("handler had name " + name)
-    }else{
-        mux.named_handlers[name] = &r
-    }
+	if _, ok := mux.named_handlers[name]; ok {
+		panic("handler had name " + name)
+	} else {
+		mux.named_handlers[name] = &r
+	}
 }
 
-
+//进行匹配，返回handler
 func (mux *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	//用来判定是否返回panic，做到提前return
+	//重写http.Error
 	defer func() {
 		if x := recover(); x != nil {
 			switch x.(type) {
@@ -95,7 +96,9 @@ func (mux *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	//request_middleware
 	h, f, name := mux.Handler(r)
+	//没有匹配到,返回404
 	if h == nil {
 		http.NotFound(w, r)
 		return
@@ -116,8 +119,15 @@ func (mux *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	prepare := h_value.MethodByName("Prepare")
 	prepare.Call(in)
 
+	//添加取不到方法的判断
+	//有方法用提供的
 	if f != "" {
 		method := h_value.MethodByName(f)
+		if !method.IsValid() {
+			err := "no method " + f
+			Logger.Error(err)
+			panic(err)
+		}
 		h_value_ptr.FieldByName("Args").Set(reflect.ValueOf(name))
 		var inn []reflect.Value
 		for _, v := range name {
@@ -125,8 +135,14 @@ func (mux *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		method.Call(inn)
 	} else {
+		//转成合适的名字格式
 		methodName := r.Method[0:1] + strings.ToLower(r.Method[1:])
 		method := h_value.MethodByName(methodName)
+		if !method.IsValid() {
+			err := "no method " + methodName
+			Logger.Error(err)
+			panic(HttpError{http.StatusMethodNotAllowed, "method no allowed!", ""})
+		}
 		h_value_ptr.FieldByName("Args").Set(reflect.ValueOf(name))
 		method.Call(in)
 	}
@@ -160,7 +176,8 @@ func (mux *ServeMux) match(path string) (HandlerInterface, string, map[string]st
 func (mux *ServeMux) Reverse() {
 }
 
-
+//看路由和url是否匹配
+//后面改成返回匹配的串
 func pathMatch(route *route, path string) (bool, map[string]string) {
 	if !route.regex.MatchString(path) {
 		return false, nil
