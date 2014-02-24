@@ -30,7 +30,7 @@ func get_random_string(length int, char []byte) (s string) {
 
 func cookie_signature(name, value, timestamp string) string {
 	//这里取了settings
-	hash := hmac.New(sha256.New, []byte(settings["secret_key"]))
+	hash := hmac.New(sha256.New, []byte(Settings["secret_key"]))
 	hash.Write([]byte(name + value + timestamp))
 
 	return hex.EncodeToString(hash.Sum(nil))

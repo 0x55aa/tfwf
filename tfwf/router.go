@@ -104,6 +104,7 @@ func (mux *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h_value := reflect.ValueOf(h)
+	//context := h_value.Interface().(ContextInterface)
 	var h_value_ptr reflect.Value
 	if !h_value.CanSet() {
 		h_value_ptr = h_value.Elem()
@@ -194,6 +195,10 @@ func pathMatch(route *route, path string) (bool, map[string]string) {
 }
 
 func ListenAndServe(addr string, handler http.Handler) error {
+	err := LoadTemplate()
+	if err != nil {
+		panic(err)
+	}
 	server := &http.Server{Addr: addr, Handler: DefaultServeMux}
 	if handler != nil {
 		server.Handler = handler

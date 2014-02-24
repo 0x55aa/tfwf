@@ -21,7 +21,7 @@ func loadTemplate(path string, f os.FileInfo, err error) error {
 	if f.IsDir() {
 		return nil
 	}
-	keyPath := path[len(settings["template_dir"])+1:]
+	keyPath := path[len(Settings["template_dir"])+1:]
 	t := template.Must(template.ParseFiles(path))
 	Templates[keyPath] = t
 	return nil
@@ -29,7 +29,7 @@ func loadTemplate(path string, f os.FileInfo, err error) error {
 
 func LoadTemplate() error {
 	//先遍历取到所有文件名（包含路径）
-	err := filepath.Walk(settings["template_dir"], loadTemplate)
+	err := filepath.Walk(Settings["template_dir"], loadTemplate)
 	if err != nil {
 		fmt.Printf("load template error:%v", err)
 		return err
